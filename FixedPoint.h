@@ -32,7 +32,7 @@ public:
     }
 
     template<typename t>
-    FixedPoint(t start) {
+    inline void handler(t start){
         storage = 0;
         if constexpr(std::is_floating_point_v<t>){
             storage = floatingPoint(start);
@@ -50,6 +50,11 @@ public:
         }
     }
 
+    template<typename t>
+    FixedPoint(t start) {
+        handler(start);
+    }
+
     void print() {
         std::cout << (storage / power()) << "." << (storage % power()) << std::endl;
     }
@@ -62,8 +67,9 @@ public:
         return !(rhs == *this);
     }
 
-    FixedPoint& operator=(const FixedPoint& rhs){
-        storage = rhs.storage;
+    template<typename t>
+    FixedPoint& operator=(const t& rhs) {
+        handler(rhs);
         return *this;
     }
 
