@@ -20,5 +20,13 @@ int main() {
     std::cout << out << std::endl;
     dur = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1);
     std::cout << dur.count() << std::endl;
+
+    FixedPoint<6> c = 1.234567;
+    c.print();
+    b.print();
+    b = c;
+    FixedPoint<6> d = c;
+    d = c + b;
+    d = c * b;
     return 0;
 }
