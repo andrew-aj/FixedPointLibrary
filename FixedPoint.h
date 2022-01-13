@@ -111,6 +111,13 @@ public:
         return *this;
     }
 
+    FixedPoint &operator=(const std::pair<int64_t, uint64_t> majorMinor){
+        assert(majorMinor.first <= (std::numeric_limits<int64_t>::max() / power()) &&
+               majorMinor.first >= (std::numeric_limits<int64_t>::min() / power()) && majorMinor.second < power());
+        storage = majorMinor.first * power() + majorMinor.second;
+        return *this;
+    }
+
     template<typename T>
     FixedPoint &operator+(const T &rhs) {
         if constexpr(std::is_same_v<FixedPoint, T>) {

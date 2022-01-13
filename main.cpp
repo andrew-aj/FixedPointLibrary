@@ -28,5 +28,7 @@ int main() {
     FixedPoint<6> d = c;
     d = c + b;
     d = c * b;
+    c = {12345, 1234};
+    c.print();
     return 0;
 }
