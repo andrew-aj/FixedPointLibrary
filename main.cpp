@@ -3,8 +3,9 @@
 #include "FixedPoint.h"
 
 int main() {
-    FixedPoint<3> sqrt = FixedPoint<3>::sqrt(100000);
-    sqrt.print();
+    FixedPoint<8> temp = 1000;
+    FixedPoint<8> t2 = 8;
+    (temp / t2).print();
 
     return 0;
 }

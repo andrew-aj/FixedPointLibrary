@@ -181,10 +181,9 @@ public:
     inline FixedPoint operator/(const T &rhs) {
         FixedPoint returnVal;
         if constexpr(std::is_same_v<FixedPoint, T>) {
-            constexpr int64_t limit = std::numeric_limits<int64_t>::max() / 2;
-            if (rhs.storage > power() && power() > limit && storage > power()) {
+            if (rhs.storage > power() * (power() / 2) && storage > power() * (power() / 2)) {
                 returnVal.storage = (storage * (power() / 2)) / (rhs.storage / (power() / 2));
-            } else if (storage > power() && power() > limit) {
+            } else if (storage > power()) {
                 returnVal.storage = storage / (rhs.storage / power());
             } else {
                 returnVal.storage = ((storage * power()) / rhs.storage);
@@ -209,12 +208,11 @@ public:
     FixedPoint operator*(const T &rhs) {
         FixedPoint returnVal;
         if constexpr(std::is_same_v<FixedPoint, T>) {
-            constexpr int64_t limit = std::numeric_limits<int64_t>::max() / 2;
-            if (rhs.storage > power() && power() > limit && storage > power()) {
+            if (rhs.storage > power() * (power() / 2) && storage > power() * (power() / 2)) {
                 returnVal.storage = (storage / (power() / 2)) * (rhs.storage / (power() / 2));
-            } else if (rhs.storage > power() && power() > limit) {
+            } else if (rhs.storage > power()) {
                 returnVal.storage = (rhs.storage / power()) * storage;
-            } else if (storage > power() && power() > limit) {
+            } else if (storage > power()) {
                 returnVal.storage = (storage / power()) * rhs.storage;
             } else {
                 int64_t temp = storage * rhs.storage;
