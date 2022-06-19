@@ -27,11 +27,13 @@ concept integer_pair = is_pair<T> && std::integral<typename T::first_type> &&
 template<int decimalPoints> requires correctSize<decimalPoints>
 class DecimalFixedPoint {
 public:
+    //Base case for 10^0 when calculating the power at compile time.
     template<std::size_t decimal = decimalPoints>
     static constexpr typename std::enable_if<decimal == 0, int64_t>::type power() {
         return 1;
     }
 
+    //Compile time calculation of 10^decimalPoints using enable_if to recursively calculate.
     template<std::size_t decimal = decimalPoints>
     static constexpr typename std::enable_if<decimal != 0, int64_t>::type power() {
         return 10 * power<decimal - 1>();
@@ -41,6 +43,7 @@ public:
         return (exponent == 0) ? 1 : 10 * ipower(exponent - 1);
     }
 
+    //Returns the amount of precision for this class.
     constexpr std::size_t getPrecision() {
         return decimalPoints;
     }
@@ -118,7 +121,6 @@ public:
     DecimalFixedPoint(DecimalFixedPoint<decimalPoints> const &input) {
         storage = input.storage;
     }
-
 
 private:
     int64_t storage;
