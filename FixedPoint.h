@@ -2,12 +2,30 @@
 #define FIXEDPOINTMATH_FIXEDPOINT_H
 
 #include <bitset>
-#include <cassert>
 #include <cmath>
+#include <utility>
 #include <iostream>
+#include <concepts>
 
-template<std::size_t decimalPoints>
-class FixedPoint {
+template<int T>
+concept correctSize = requires(){ T <= 18; T > 0; };
+
+template<typename T>
+concept is_pair = requires(T t) {
+    typename T::first_type;
+    typename T::second_type;
+    t.first;
+    t.second;
+    requires std::same_as<decltype(t.first), typename T::first_type>;
+    requires std::same_as<decltype(t.second), typename T::second_type>;
+};
+
+template<typename T>
+concept integer_pair = is_pair<T> && std::integral<typename T::first_type> &&
+                       std::unsigned_integral<typename T::second_type>;
+
+template<int decimalPoints> requires correctSize<decimalPoints>
+class DecimalFixedPoint {
 public:
     template<std::size_t decimal = decimalPoints>
     static constexpr typename std::enable_if<decimal == 0, int64_t>::type power() {
@@ -19,183 +37,88 @@ public:
         return 10 * power<decimal - 1>();
     }
 
+    uint64_t ipower(int exponent){
+        return (exponent == 0) ? 1 : 10 * ipower(exponent - 1);
+    }
+
     constexpr std::size_t getPrecision() {
         return decimalPoints;
     }
 
-    const int64_t getStorage() {
+    constexpr int64_t getStorage() {
         return storage;
     }
 
-    FixedPoint() {
-        static_assert(decimalPoints <= 18);
-        static_assert(decimalPoints != 0);
+    const std::string to_string() {
+        auto mod = storage % power();
+        return std::to_string(storage / power()) + '.' + std::to_string(mod > 0 ? mod : mod * -1);
+    }
+
+    inline int digits(std::integral auto num) {
+        return log10(static_cast<double>(num)) + 1;
+    }
+
+    DecimalFixedPoint() {
         storage = 0;
     };
 
-    template<typename t>
-    int64_t floatingPoint(t start) {
-        assert(start <= (std::numeric_limits<int64_t>::max() / power()) &&
-               start >= (std::numeric_limits<int64_t>::min() / power()));
-
-        int64_t integer = (int64_t) start;
-        int64_t decimal = (start - integer) * power();
-        integer *= power();
-        int64_t m_storage = 0;
-        m_storage += integer;
-        m_storage += decimal;
-        return m_storage;
+    DecimalFixedPoint(std::integral auto input) {
+        storage = static_cast<int64_t>(input) * power();
     }
 
-    template<typename t>
-    inline void handler(t start) {
-        storage = 0;
-        if constexpr(std::is_floating_point_v<t>) {
-            storage = floatingPoint(start);
-        } else if constexpr(std::is_same_v<FixedPoint, t>) {
-            storage = start.storage;
-            return;
-        } else if constexpr(std::is_integral_v<t>) {
-            assert(start <= (std::numeric_limits<int64_t>::max() / power()) &&
-                   start >= (std::numeric_limits<int64_t>::min() / power()));
-
-            storage = (int64_t) (std::pow(10, decimalPoints)) * start;
-        } else if constexpr(std::is_member_function_pointer_v<decltype(&t::getPrecision)>) {
-            storage = handleDiff(start);
+    DecimalFixedPoint(std::floating_point auto input) {
+        int64_t cast = static_cast<int64_t>(input) * power();
+        storage = cast;
+        if (input > 0) {
+            storage += static_cast<int64_t>((input - (cast / power())) * power());
         } else {
-            []<bool flag = false>() { static_assert(flag, "Wrong data type"); }();
+            storage += -1 * static_cast<int64_t>((input + (cast / power())) * power());
         }
     }
 
-    template<typename t>
-    inline int64_t handleDiff(t start) {
-        constexpr int64_t varpower = start.power();
-        constexpr int64_t thPower = power();
-        if constexpr(varpower > thPower) {
-            int64_t diff = varpower / thPower;
-            int64_t decimal = (start.getStorage() % varpower) / diff;
-            int64_t integer = (start.getStorage() / varpower);
-            return integer * thPower + decimal;
-        } else if constexpr(varpower < thPower) {
-            int64_t diff = varpower / thPower;
-            int64_t decimal = (start.getStorage() % varpower) * diff;
-            int64_t integer = (start.getStorage() / varpower);
-            return integer * thPower + decimal;
+//    interesting algorithm for calculating digits of an integer
+//    unsigned int baseTwoDigits(unsigned int x) {
+//        return x ? 32 - __builtin_clz(x) : 0;
+//    }
+//
+//    static unsigned int baseTenDigits(unsigned int x) {
+//        static const unsigned char guess[33] = {
+//                0, 0, 0, 0, 1, 1, 1, 2, 2, 2,
+//                3, 3, 3, 3, 4, 4, 4, 5, 5, 5,
+//                6, 6, 6, 6, 7, 7, 7, 8, 8, 8,
+//                9, 9, 9
+//        };
+//        static const unsigned int tenToThe[] = {
+//                1, 10, 100, 1000, 10000, 100000,
+//                1000000, 10000000, 100000000, 1000000000,
+//        };
+//        unsigned int digits = guess[baseTwoDigits(x)];
+//        return digits + (x >= tenToThe[digits]);
+//    }
+
+    DecimalFixedPoint(integer_pair auto input) {
+        storage = static_cast<int64_t>(input.first) * power();
+        auto mod = static_cast<int64_t>(input.second) % power();
+        if (input.second < power()) {
+            if (input.first > 0) {
+                storage += mod;
+            } else {
+                storage += -1 * mod;
+            }
         } else {
-            return start.getStorage();
+            int dig = digits(input.second) - decimalPoints;
+            if (input.first > 0) {
+                storage += static_cast<int64_t>(input.second) / ipower(dig);
+            } else {
+                storage -= static_cast<int64_t>(input.second) / ipower(dig);
+            }
         }
     }
 
-    template<typename t>
-    FixedPoint(t start) {
-        static_assert(decimalPoints <= 18);
-        static_assert(decimalPoints != 0);
-        handler(start);
+    DecimalFixedPoint(DecimalFixedPoint<decimalPoints> const &input) {
+        storage = input.storage;
     }
 
-    void print() {
-        std::cout << (storage / power()) << "." << (storage % power()) << std::endl;
-    }
-
-    bool operator==(const FixedPoint &rhs) const {
-        return storage == rhs.storage;
-    }
-
-    bool operator!=(const FixedPoint &rhs) const {
-        return !(rhs == *this);
-    }
-
-    template<typename t>
-    FixedPoint &operator=(const t &rhs) {
-        handler(rhs);
-        return *this;
-    }
-
-    FixedPoint &operator=(const std::pair<int64_t, uint64_t> majorMinor){
-        assert(majorMinor.first <= (std::numeric_limits<int64_t>::max() / power()) &&
-               majorMinor.first >= (std::numeric_limits<int64_t>::min() / power()) && majorMinor.second < power());
-        storage = majorMinor.first * power() + majorMinor.second;
-        return *this;
-    }
-
-    template<typename T>
-    FixedPoint &operator+(const T &rhs) {
-        if constexpr(std::is_same_v<FixedPoint, T>) {
-            storage += rhs.storage;
-            return *this;
-        } else if constexpr(std::is_integral_v<T>) {
-            storage += rhs * power();
-            return *this;
-        } else if constexpr(std::is_floating_point_v<T>) {
-            int64_t toFixed = floatingPoint(rhs);
-            storage += toFixed;
-            return *this;
-        } else if constexpr(std::is_member_function_pointer_v<decltype(&T::getPrecision)>) {
-            storage += handleDiff(rhs);
-            return *this;
-        } else {
-            []<bool flag = false>() { static_assert(flag, "Wrong data type operator +"); }();
-        }
-    }
-
-    template<typename T>
-    FixedPoint &operator-(const T &rhs) {
-        if constexpr(std::is_same_v<FixedPoint, T>) {
-            storage -= rhs.storage;
-            return *this;
-        } else if constexpr(std::is_integral_v<T>) {
-            storage -= rhs * power();
-            return *this;
-        } else if constexpr(std::is_floating_point_v<T>) {
-            int64_t toFixed = floatingPoint(rhs);
-            storage -= toFixed;
-            return *this;
-        } else if constexpr(std::is_member_function_pointer_v<decltype(&T::getPrecision)>) {
-            storage -= handleDiff(rhs);
-            return *this;
-        } else {
-            []<bool flag = false>() { static_assert(flag, "Wrong data type operator +"); }();
-        }
-    }
-
-    template<typename T>
-    inline FixedPoint &operator/(const T &rhs) {
-        if constexpr(std::is_same_v<FixedPoint, T>) {
-            storage = (storage * power()) / rhs.storage;
-            return *this;
-        } else if constexpr(std::is_integral_v<T>) {
-            *this / FixedPoint(rhs);
-            return *this;
-        } else if constexpr(std::is_floating_point_v<T>) {
-            *this / FixedPoint(rhs);
-            return *this;
-        } else if constexpr(std::is_member_function_pointer_v<decltype(&T::getPrecision)>) {
-            *this / handleDiff(rhs);
-            return *this;
-        } else {
-            []<bool flag = false>() { static_assert(flag, "Wrong data type operator +"); }();
-        }
-    }
-
-    template<typename T>
-    FixedPoint &operator*(const T &rhs) {
-        if constexpr(std::is_same_v<FixedPoint, T>) {
-            storage = storage * rhs.storage;
-            storage /= power();
-            return *this;
-        } else if constexpr(std::is_integral_v<T>) {
-            *this * FixedPoint(rhs);
-            return *this;
-        } else if constexpr(std::is_floating_point_v<T>) {
-            *this * FixedPoint(rhs);
-            return *this;
-        } else if constexpr(std::is_member_function_pointer_v<decltype(&T::getPrecision)>) {
-            *this * handleDiff(rhs);
-            return *this;
-        } else {
-            []<bool flag = false>() { static_assert(flag, "Wrong data type operator +"); }();
-        }
-    }
 
 private:
     int64_t storage;
