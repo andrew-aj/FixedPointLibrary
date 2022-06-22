@@ -39,7 +39,7 @@ public:
         return 10 * power<decimal - 1>();
     }
 
-    uint64_t ipower(int exponent){
+    uint64_t ipower(int exponent) {
         return (exponent == 0) ? 1 : 10 * ipower(exponent - 1);
     }
 
@@ -122,8 +122,30 @@ public:
         storage = input.storage;
     }
 
+//    DecimalFixedPoint operator*(DecimalFixedPoint const &input) {
+//        int scale = ipower(decimalPoints);
+//        DecimalFixedPoint<decimalPoints> temp;
+//
+//        //Here we only divide by the scale factor of the other number
+//        temp.storage = (storage * input.storage) / scale;
+//        return temp;
+//    }
+
+    template<int decimal>
+    DecimalFixedPoint operator*(DecimalFixedPoint<decimal> const& input){
+        int scale = ipower(decimal);
+        DecimalFixedPoint<decimalPoints> temp;
+
+        //Here we only divide by the scale factor of the other number
+        temp.storage = (storage * input.storage) / scale;
+        return temp;
+    }
+
 private:
     int64_t storage;
+
+    template<int decimal> requires correctSize<decimal>
+    friend class DecimalFixedPoint;
 };
 
 

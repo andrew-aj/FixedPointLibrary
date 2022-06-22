@@ -3,7 +3,8 @@
 #include "FixedPoint.h"
 
 int main() {
-    DecimalFixedPoint<6> a(std::pair<int,unsigned int>{-12345, 12345678});
-    std::cout << a.to_string() << std::endl;
+    DecimalFixedPoint<3> a(std::pair<int,unsigned int>{123, 123});
+    DecimalFixedPoint<3> b(std::pair<int, unsigned int>{456, 789});
+    std::cout << (a * b).to_string() << std::endl;
     return 0;
 }
